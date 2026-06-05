@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kutatási Hipotézis Bingo - Nyomtatható 5x5 kártyák</title>
+  <style>
+    /* CSS variables provide three preset sizes via body class (large/medium/compact) */
+    :root{
+      --card-w:420px;     /* default large */
+      --cell-h:92px;
+      --cell-font:15px;
+      --gap:10px;
+      --card-padding:14px;
+    }
+    body{font-family: Arial, Helvetica, sans-serif; padding:18px; background:#f5f5f5}
+    .controls{margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .controls label{font-weight:600}
+    .controls select,input,button{padding:8px 10px}
+    .cards{display:flex;flex-wrap:wrap;gap:var(--gap)}
+    .card{width:var(--card-w);background:#fff;padding:var(--card-padding);border:1px solid #ccc;box-shadow:0 1px 2px rgba(0,0,0,0.06)}
+    .card h3{margin:0 0 10px;font-size:18px;text-align:center}
+    .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .cell{min-height:var(--cell-h);display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;border:1px solid #bbb;font-size:var(--cell-font);line-height:1.08;word-break:break-word}
+    .free{background:#f0f0f0;font-weight:700}
+
+    /* Size presets */
+    body.size-large{--card-w:460px;--cell-h:100px;--cell-font:16px;--gap:14px;--card-padding:16px}
+    body.size-medium{--card-w:360px;--cell-h:80px;--cell-font:14px;--gap:12px;--card-padding:12px}
+    body.size-compact{--card-w:300px;--cell-h:64px;--cell-font:13px;--gap:10px;--card-padding:10px}
+
+    /* Print styles: will adapt per size via body class */
+    @media print{
+      body{padding:0}
+      .controls{display:none}
+      .cards{gap:8px}
+      .card{box-shadow:none;border:1px solid #000}
+      @page{size:A4;margin:12mm}
+
+      /* large -> one card per page */
+      body.size-large .card{width:100%;page-break-after:always}
+      /* medium -> two cards per page */
+      body.size-medium .card{width:48%;page-break-inside:avoid}
+      /* compact -> 6 cards per page, two per row */
+      body.size-compact .card{width:48%;page-break-inside:avoid}
+    }
+  </style>
+</head>
+<body class="size-large">
+  <div class="controls">
+    <label for="numCards">Kártyák száma:</label>
+    <input id="numCards" type="number" min="1" max="100" value="12" style="width:88px" />
+
+    <label for="sizeSelect">Méret:</label>
+    <select id="sizeSelect">
+      <option value="large" selected>Large — 1 kártya/lap (nagyobb cellák)</option>
+      <option value="medium">Medium — 2 kártya/lap</option>
+      <option value="compact">Compact — 6 kártya/lap (eredeti)</option>
+    </select>
+    
+    <label for="listSelect">Lista:</label>
+    <select id="listSelect">
+      <option value="Változók" selected>Változók</option>
+      <option value="Hibák">Hibák</option>
+    </select>
+
+    <label for="seed">(opcionális) seed:</label>
+    <input id="seed" type="text" placeholder="üres = véletlen" style="width:140px" />
+
+    <button id="gen">Generálás</button>
+    <button id="print">Nyomtatás / Mentés PDF-ként</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <script>
+    // Two named lists: Változók and Hibák
+    const LISTS = {
+      "Változók": [
+        "Testtömeg-index (BMI)",
+        "Szisztolés vérnyomás (mmHg)",
+        "LDL-koleszterin (mmol/L)",
+        "HbA1c (%)",
+        "Önbevalláson alapuló életminőség (EQ-5D pontszám)",
+        "Depresszió (PHQ-9 pontszám)",
+        "Kortizol (saliva/vér, nmol/L)",
+        "30 napos kórházi újrafelvétel aránya (%)",
+        "Tüdőfunkció (FEV1, L)",
+        "Szűrésen való részvétel aránya (pl. emlőrák, %)",
+        "Vakcinációs arány (%) (pl. HPV)",
+        "Antibiotikum-fogyasztás (DDD / 1000 lakos / nap)",
+        "részvétel az aerob edzésprogramban (igen/nem)",
+        "sóbevitel (csökkentett vs. szokásos)",
+        "részvétel az alvásjavító programban (igen/nem)",
+        "emlékeztető üzenetek küldése (igen/nem)",
+        "dohányzás státusz (lehagyta vs. folytatja)",
+        "heti fizikai aktivitás (≥150 perc vs. <150 perc)",
+        "részvétel a mindfulness programban (igen/nem)",
+        "részvétel a leszoktató programban (igen/nem)",
+        "szűrés típusa (PCR vs. korábbi módszer)",
+        "EHR-vezérelt betegkezelés alkalmazása (igen/nem)",
+        "program bevezetése (iskola részt vesz vs. nem)",
+        "stewardship program implementálása (igen/nem)",
+        "konzultáció típusa (telemedicina vs. személyes)",
+        "étrend típusa (magas rost vs. kontroll)"
+      ],
+      "Hibák": [
+        "Nem tesztelhető",
+        "Nem illeszkedik az eszközökhöz",
+        "Triviális",
+        "Túl bonyolult",
+        "Túl tág",
+        "Nem kapcsolódik a kutatási kérdéshez",
+        "Fogalmilag homályos",
+        "Nincs irány meghatározva",
+        "Nincs változó definiálva",
+        "Változók nincsenek operacionalizálva",
+        "Mintavételi keret hiányzik / nem reprezentatív populáció",
+        "Konfundáló változók figyelmen kívül hagyása",
+        "Idődimenzió hiánya (nincs időtartam/irány)",
+        "Célnépesség / populáció nem meghatározott",
+        "Kontrollcsoport hiánya",
+        "Túlzó általánosítás (overgeneralization)",
+        "Mérési skálák inkompatibilisek / nem megfelelőek",
+        "Etikai aggályok / nem engedélyezhető eljárás",
+        "Megvalósíthatósági probléma (nem kivitelezhető)",
+        "Alapfeltevések nincsenek megindokolva",
+        "Cirkuláris érvelés / tautológia",
+        "Összefüggés és okság összekeverése (korreláció ≠ okozat)",
+        "Többértelmű / kettős jelentésű megfogalmazás",
+        "Hiányzik a mérési egység / skála pontosítása"
+      ]
+    };
+
+    // seeded shuffle (Fisher-Yates with simple seeded RNG)
+    function seededShuffle(array, seed) {
+      let rng = Math.random;
+      if (seed != null && seed !== "") {
+        function mulberry32(a) {
+          return function() {
+            var t = a += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+          }
+        }
+        let h = 2166136261 >>> 0;
+        for (let i=0;i<seed.length;i++){ h = Math.imul(h ^ seed.charCodeAt(i), 16777619); }
+        rng = mulberry32(h >>> 0);
+      }
+      let a = array.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        let j = Math.floor(rng() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function getShuffledForCard(listName, seed, cardIndex) {
+      const base = LISTS[listName] ? LISTS[listName].slice() : [];
+      return seededShuffle(base, seed ? (seed + '|' + cardIndex) : null);
+    }
+
+    function generate(numCards, seed, listName) {
+      const container = document.getElementById('cards');
+      container.innerHTML = '';
+      for (let k=0;k<numCards;k++){
+        let shuffled = getShuffledForCard(listName, seed ? seed : null, k);
+        let picks = shuffled.slice(0,24);
+        // if list shorter than 24, allow repetition by cycling
+        if (picks.length < 24) {
+          let i = 0;
+          while (picks.length < 24) { picks.push(shuffled[i++ % shuffled.length]); }
+        }
+        picks.splice(12,0,'__FREE__');
+        let card = document.createElement('div');
+        card.className = 'card';
+        let title = document.createElement('h3');
+        title.textContent = `BINGÓ #${k+1}`;
+        card.appendChild(title);
+        let table = document.createElement('div');
+        table.className = 'grid';
+        for (let i=0;i<25;i++){
+          let div = document.createElement('div');
+          div.className = 'cell';
+          if (i===12) { div.classList.add('free'); div.textContent = 'SZABAD (FREE)'; }
+          else { div.textContent = picks[i] || ''; }
+          table.appendChild(div);
+        }
+        card.appendChild(table);
+        container.appendChild(card);
+      }
+    }
+
+    // size switcher
+    const sizeSelect = document.getElementById('sizeSelect');
+    sizeSelect.addEventListener('change', ()=>{
+      document.body.classList.remove('size-large','size-medium','size-compact');
+      document.body.classList.add('size-'+sizeSelect.value);
+    });
+
+    // list selector
+    const listSelect = document.getElementById('listSelect');
+    listSelect.addEventListener('change', ()=>{
+      const n = parseInt(document.getElementById('numCards').value) || 6;
+      const seed = document.getElementById('seed').value.trim();
+      generate(n, seed === '' ? null : seed, listSelect.value);
+    });
+
+    document.getElementById('gen').addEventListener('click', ()=>{
+      let n = parseInt(document.getElementById('numCards').value) || 6;
+      let seed = document.getElementById('seed').value.trim();
+      generate(n, seed === '' ? null : seed, listSelect.value);
+    });
+    document.getElementById('print').addEventListener('click', ()=>{ window.print(); });
+
+    // initial generate (use current list selection)
+    generate(parseInt(document.getElementById('numCards').value), null, document.getElementById('listSelect').value);
+  </script>
+</body>
+</html>

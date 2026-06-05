@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tételhúzó – Vizsgáztató</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f0f4f8;
+            color: #1a202c;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            color: #2d3748;
+            letter-spacing: -0.5px;
+        }
+
+        .setup-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        .setup-card .fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .field label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #718096;
+            margin-bottom: 0.4rem;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 0.55rem 0.8rem;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.15s;
+            background: #f7fafc;
+        }
+
+        .field input:focus {
+            outline: none;
+            border-color: #4299e1;
+            background: #fff;
+        }
+
+        #draw-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #3182ce;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+            letter-spacing: 0.02em;
+        }
+
+        #draw-btn:hover { background: #2b6cb0; }
+        #draw-btn:active { transform: scale(0.98); }
+        #draw-btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #draw-result {
+            text-align: center;
+            font-size: 1rem;
+            min-height: 1.5rem;
+            margin-top: 0.8rem;
+            color: #e53e3e;
+            font-weight: 500;
+        }
+
+        #notes-container {
+            max-width: 860px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .note-block {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            overflow: hidden;
+            animation: slideIn 0.25s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .note-header {
+            background: #ebf8ff;
+            border-bottom: 1.5px solid #bee3f8;
+            padding: 0.65rem 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .note-header .badge {
+            background: #3182ce;
+            color: #fff;
+            border-radius: 20px;
+            padding: 0.2rem 0.75rem;
+            font-size: 0.92rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .note-header .meta {
+            font-size: 0.88rem;
+            color: #4a5568;
+            display: flex;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-header .meta span { display: flex; align-items: center; gap: 0.3rem; }
+
+        .note-body {
+            padding: 0.8rem 1.1rem;
+        }
+
+        .note-body textarea {
+            width: 100%;
+            min-height: 110px;
+            resize: vertical;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.97rem;
+            font-family: inherit;
+            line-height: 1.55;
+            background: #f7fafc;
+            transition: border-color 0.15s;
+        }
+
+        .note-body textarea:focus {
+            outline: none;
+            border-color: #4299e1;
+            background: #fff;
+        }
+
+        #empty-hint {
+            text-align: center;
+            color: #a0aec0;
+            font-size: 0.95rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🎓 Tételhúzó &amp; Vizsgajegyzet</h1>
+
+<div class="setup-card">
+    <div class="fields">
+        <div class="field">
+            <label for="max-tetelek">Tételek száma</label>
+            <input type="number" id="max-tetelek" min="1" value="30" placeholder="pl. 30">
+        </div>
+        <div class="field">
+            <label for="vizsgazo-neve">Vizsgázó neve</label>
+            <input type="text" id="vizsgazo-neve" placeholder="Teljes név">
+        </div>
+    </div>
+    <button id="draw-btn">Tétel húzása</button>
+    <div id="draw-result"></div>
+</div>
+
+<div id="notes-container">
+    <p id="empty-hint">Húzz egy tételt a kezdéshez.</p>
+</div>
+
+<script>
+    const drawBtn = document.getElementById('draw-btn');
+    const maxInput = document.getElementById('max-tetelek');
+    const nameInput = document.getElementById('vizsgazo-neve');
+    const container = document.getElementById('notes-container');
+    const resultMsg = document.getElementById('draw-result');
+    const emptyHint = document.getElementById('empty-hint');
+
+    let drawnNumbers = [];
+
+    // Reset drawn pool when max changes
+    maxInput.addEventListener('change', () => { drawnNumbers = []; updateBtn(); });
+
+    function updateBtn() {
+        const max = parseInt(maxInput.value, 10) || 0;
+        const remaining = max - drawnNumbers.length;
+        if (max > 0 && remaining <= 0) {
+            drawBtn.disabled = true;
+            drawBtn.textContent = 'Minden tétel kihúzva';
+        } else {
+            drawBtn.disabled = false;
+            drawBtn.textContent = max > 0
+                ? `Tétel húzása (${remaining} maradt)`
+                : 'Tétel húzása';
+        }
+    }
+
+    maxInput.addEventListener('input', updateBtn);
+
+    drawBtn.addEventListener('click', () => {
+        const max = parseInt(maxInput.value, 10);
+        const name = nameInput.value.trim();
+
+        if (!max || max < 1) {
+            resultMsg.textContent = 'Add meg a tételek számát!';
+            maxInput.focus();
+            return;
+        }
+        if (!name) {
+            resultMsg.textContent = 'Add meg a vizsgázó nevét!';
+            nameInput.focus();
+            return;
+        }
+        if (drawnNumbers.length >= max) {
+            resultMsg.textContent = 'Minden tétel ki lett már húzva!';
+            return;
+        }
+
+        resultMsg.textContent = '';
+
+        // Pick from remaining pool
+        const remaining = [];
+        for (let i = 1; i <= max; i++) {
+            if (!drawnNumbers.includes(i)) remaining.push(i);
+        }
+        const num = remaining[Math.floor(Math.random() * remaining.length)];
+        drawnNumbers.push(num);
+        updateBtn();
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateStr = now.toLocaleDateString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+        if (emptyHint) emptyHint.remove();
+
+        const block = document.createElement('div');
+        block.className = 'note-block';
+
+        block.innerHTML = `
+            <div class="note-header">
+                <span class="badge">${num}. tétel</span>
+                <div class="meta">
+                    <span>👤 ${escapeHtml(name)}</span>
+                    <span>📅 ${dateStr}</span>
+                    <span>🕐 ${timeStr}</span>
+                    <span id="start-label-${num}-${Date.now()}" style="display:none;">▶ Felelt kezdete: <strong></strong></span>
+                </div>
+            </div>
+            <div class="note-body">
+                <textarea placeholder="Ide jegyezd fel a vizsgán elhangzottakat…"></textarea>
+            </div>
+        `;
+
+        container.prepend(block);
+        const textarea = block.querySelector('textarea');
+        const startLabel = block.querySelector('.meta span:last-child');
+        textarea.addEventListener('input', () => {
+            if (startLabel.style.display === 'none') {
+                const t = new Date();
+                const ts = t.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                startLabel.querySelector('strong').textContent = ts;
+                startLabel.style.display = 'flex';
+            }
+        }, { once: false });
+        textarea.focus();
+    });
+
+    function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+</script>
+
+</body>
+</html>
