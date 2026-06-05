@@ -18,31 +18,89 @@
     .controls label{font-weight:600}
     .controls select,input,button{padding:8px 10px}
     .cards{display:flex;flex-wrap:wrap;gap:var(--gap)}
-    .card{width:var(--card-w);background:#fff;padding:var(--card-padding);border:1px solid #ccc;box-shadow:0 1px 2px rgba(0,0,0,0.06)}
+    .card{width:var(--card-w);background:#fff;padding:var(--card-padding);border:2px solid #444;box-shadow:0 1px 2px rgba(0,0,0,0.06);position:relative;overflow:hidden}
     .card h3{margin:0 0 10px;font-size:18px;text-align:center}
     .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
     .cell{min-height:var(--cell-h);display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;border:1px solid #bbb;font-size:var(--cell-font);line-height:1.08;word-break:break-word}
     .free{background:#f0f0f0;font-weight:700}
+    /* card background image layer */
+    .card-bg{position:absolute;inset:0;background-size:cover;background-position:center;pointer-events:none;z-index:0}
+    .card h3,.card .grid{position:relative;z-index:1}
+    .cell{background:rgba(255,255,255,0.55)}
+    .free{background:rgba(240,240,240,0.75)!important}
 
     /* Size presets */
     body.size-large{--card-w:460px;--cell-h:100px;--cell-font:16px;--gap:14px;--card-padding:16px}
     body.size-medium{--card-w:360px;--cell-h:80px;--cell-font:14px;--gap:12px;--card-padding:12px}
     body.size-compact{--card-w:300px;--cell-h:64px;--cell-font:13px;--gap:10px;--card-padding:10px}
 
-    /* Print styles: will adapt per size via body class */
-    @media print{
-      body{padding:0}
-      .controls{display:none}
-      .cards{gap:8px}
-      .card{box-shadow:none;border:1px solid #000}
-      @page{size:A4;margin:12mm}
+    /* Custom list editor */
+    #custom-editor{margin-bottom:14px;background:#fff;border:1px solid #ccc;border-radius:6px;padding:14px;max-width:900px}
+    #custom-editor h4{margin:0 0 8px;font-size:15px;color:#333}
+    #custom-editor .editor-note{font-size:13px;color:#666;margin-bottom:8px}
+    #custom-editor .editor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-bottom:10px}
+    #custom-editor .editor-grid input{padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:13px;width:100%}
+    #custom-editor .editor-grid input:focus{outline:none;border-color:#4299e1;background:#f0f8ff}
+    #custom-editor .editor-grid input.filled{border-color:#48bb78;background:#f0fff4}
+    #custom-editor .editor-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    #custom-editor .item-count{font-size:13px;color:#718096}
+    #btn-use-custom{background:#3182ce;color:#fff;border:none;border-radius:5px;padding:8px 16px;cursor:pointer;font-weight:600}
+    #btn-use-custom:hover{background:#2b6cb0}
+    #btn-clear-custom{background:#e53e3e;color:#fff;border:none;border-radius:5px;padding:8px 12px;cursor:pointer}
+    #btn-clear-custom:hover{background:#c53030}
+    #btn-add-row{background:#48bb78;color:#fff;border:none;border-radius:5px;padding:8px 12px;cursor:pointer}
+    #btn-add-row:hover{background:#38a169}
 
-      /* large -> one card per page */
-      body.size-large .card{width:100%;page-break-after:always}
-      /* medium -> two cards per page */
-      body.size-medium .card{width:48%;page-break-inside:avoid}
-      /* compact -> 6 cards per page, two per row */
-      body.size-compact .card{width:48%;page-break-inside:avoid}
+    /* Print styles: every card fills exactly one A4 page */
+    @media print{
+      @page{size:A4 portrait;margin:10mm}
+      body{padding:0;background:#fff}
+      .controls,#custom-editor,#bg-controls{display:none!important}
+      .cards{display:block}
+      .card{
+        width:100%;
+        box-sizing:border-box;
+        box-shadow:none;
+        border:2px solid #000;
+        page-break-after:always;
+        break-after:page;
+        height:calc(297mm - 20mm);
+        display:flex;
+        flex-direction:column;
+        padding:8mm;
+        position:relative;
+        overflow:hidden;
+      }
+      .card-bg{
+        position:absolute;inset:0;
+        background-size:cover;background-position:center;
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+        z-index:0;
+      }
+      .card h3{font-size:20pt;margin-bottom:6mm;flex-shrink:0;position:relative;z-index:1}
+      .grid{
+        flex:1;
+        display:grid;
+        grid-template-columns:repeat(5,1fr);
+        gap:4px;
+        position:relative;z-index:1;
+      }
+      .cell{
+        border:1px solid #000;
+        font-size:10pt;
+        padding:4px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        line-height:1.2;
+        word-break:break-word;
+        overflow:hidden;
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+      }
+      .free{background:rgba(220,220,220,0.85)!important;font-weight:700}
     }
   </style>
 </head>
@@ -51,17 +109,18 @@
     <label for="numCards">Kártyák száma:</label>
     <input id="numCards" type="number" min="1" max="100" value="12" style="width:88px" />
 
-    <label for="sizeSelect">Méret:</label>
+    <label for="sizeSelect">Nézet:</label>
     <select id="sizeSelect">
-      <option value="large" selected>Large — 1 kártya/lap (nagyobb cellák)</option>
-      <option value="medium">Medium — 2 kártya/lap</option>
-      <option value="compact">Compact — 6 kártya/lap (eredeti)</option>
+      <option value="large" selected>Large </option>
+      <option value="medium">Medium</option>
+      <option value="compact">Compact</option>
     </select>
     
     <label for="listSelect">Lista:</label>
     <select id="listSelect">
       <option value="Változók" selected>Változók</option>
       <option value="Hibák">Hibák</option>
+      <option value="Saját">Saját lista</option>
     </select>
 
     <label for="seed">(opcionális) seed:</label>
@@ -70,10 +129,101 @@
     <button id="gen">Generálás</button>
     <button id="print">Nyomtatás / Mentés PDF-ként</button>
   </div>
+  <div id="bg-controls" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;padding:10px 14px;border:1px solid #ccc;border-radius:6px;max-width:700px">
+    <label style="font-weight:600">🖼 Háttérkép:</label>
+    <input type="file" id="bg-upload" accept="image/*" style="font-size:13px" />
+    <label for="bg-opacity" style="font-weight:600">Átlátszóság:</label>
+    <input type="range" id="bg-opacity" min="0" max="1" step="0.05" value="0.18" style="width:120px" />
+    <span id="bg-opacity-val" style="font-size:13px;min-width:34px">18%</span>
+    <button id="bg-remove" style="padding:6px 10px;background:#e53e3e;color:#fff;border:none;border-radius:4px;cursor:pointer">Eltávolítás</button>
+  </div>
+
+  <!-- Custom list editor (hidden by default) -->
+  <div id="custom-editor" style="display:none">
+    <h4>Saját lista szerkesztése</h4>
+    <p class="editor-note">Töltsd ki a mezőket – legalább 24 tétel szükséges a kártya generáláshoz. Üres mezők kihagyásra kerülnek.</p>
+    <div class="editor-grid" id="editor-grid"></div>
+    <div class="editor-actions">
+      <button id="btn-add-row">+ 5 mező hozzáadása</button>
+      <button id="btn-use-custom">Generálás ebből a listából</button>
+      <button id="btn-clear-custom">Törlés</button>
+      <span class="item-count" id="item-count"></span>
+    </div>
+  </div>
 
   <div class="cards" id="cards"></div>
 
   <script>
+    // ---- Custom list logic ----
+    const CUSTOM_LIST_KEY = 'bingo_custom_list';
+    let customItems = JSON.parse(localStorage.getItem(CUSTOM_LIST_KEY) || '[]');
+
+    const INITIAL_ROWS = 6; // 6 rows * 5 cols = 30 input fields
+
+    function buildEditorGrid() {
+      const grid = document.getElementById('editor-grid');
+      grid.innerHTML = '';
+      const count = Math.max(customItems.length + (5 - customItems.length % 5 || 0), INITIAL_ROWS * 5);
+      for (let i = 0; i < count; i++) {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = `${i + 1}. tétel`;
+        inp.value = customItems[i] || '';
+        if (inp.value) inp.classList.add('filled');
+        inp.addEventListener('input', () => {
+          inp.classList.toggle('filled', inp.value.trim() !== '');
+          updateItemCount();
+        });
+        grid.appendChild(inp);
+      }
+      updateItemCount();
+    }
+
+    function getEditorValues() {
+      return Array.from(document.querySelectorAll('#editor-grid input'))
+        .map(i => i.value.trim()).filter(Boolean);
+    }
+
+    function updateItemCount() {
+      const n = getEditorValues().length;
+      const el = document.getElementById('item-count');
+      el.textContent = `${n} tétel megadva${n < 24 ? ' (minimum 24 kell)' : ' ✓'}`;
+      el.style.color = n < 24 ? '#e53e3e' : '#38a169';
+    }
+
+    document.getElementById('btn-add-row').addEventListener('click', () => {
+      const grid = document.getElementById('editor-grid');
+      const start = grid.children.length;
+      for (let i = 0; i < 5; i++) {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = `${start + i + 1}. tétel`;
+        inp.addEventListener('input', () => {
+          inp.classList.toggle('filled', inp.value.trim() !== '');
+          updateItemCount();
+        });
+        grid.appendChild(inp);
+      }
+    });
+
+    document.getElementById('btn-clear-custom').addEventListener('click', () => {
+      customItems = [];
+      localStorage.removeItem(CUSTOM_LIST_KEY);
+      buildEditorGrid();
+    });
+
+    document.getElementById('btn-use-custom').addEventListener('click', () => {
+      const vals = getEditorValues();
+      if (vals.length < 24) { alert('Legalább 24 tételt adj meg a generáláshoz!'); return; }
+      customItems = vals;
+      localStorage.setItem(CUSTOM_LIST_KEY, JSON.stringify(customItems));
+      LISTS['Saját'] = customItems;
+      const n = parseInt(document.getElementById('numCards').value) || 6;
+      const seed = document.getElementById('seed').value.trim();
+      generateWithBg(n, seed === '' ? null : seed, 'Saját');
+    });
+    // ---- End custom list logic ----
+
     // Two named lists: Változók and Hibák
     const LISTS = {
       "Változók": [
@@ -202,20 +352,81 @@
     // list selector
     const listSelect = document.getElementById('listSelect');
     listSelect.addEventListener('change', ()=>{
+      const isSajat = listSelect.value === 'Saját';
+      document.getElementById('custom-editor').style.display = isSajat ? 'block' : 'none';
+      if (isSajat) {
+        LISTS['Saját'] = customItems;
+        buildEditorGrid();
+        if (customItems.length < 24) return;
+      }
       const n = parseInt(document.getElementById('numCards').value) || 6;
       const seed = document.getElementById('seed').value.trim();
-      generate(n, seed === '' ? null : seed, listSelect.value);
+      generateWithBg(n, seed === '' ? null : seed, listSelect.value);
     });
 
     document.getElementById('gen').addEventListener('click', ()=>{
       let n = parseInt(document.getElementById('numCards').value) || 6;
       let seed = document.getElementById('seed').value.trim();
-      generate(n, seed === '' ? null : seed, listSelect.value);
+      generateWithBg(n, seed === '' ? null : seed, listSelect.value);
     });
     document.getElementById('print').addEventListener('click', ()=>{ window.print(); });
 
+    // ---- Background image logic ----
+    let bgDataUrl = null;
+
+    function applyBg() {
+      document.querySelectorAll('.card-bg').forEach(el => {
+        if (bgDataUrl) {
+          el.style.backgroundImage = `url(${bgDataUrl})`;
+          el.style.opacity = document.getElementById('bg-opacity').value;
+        } else {
+          el.style.backgroundImage = '';
+        }
+      });
+    }
+
+    document.getElementById('bg-upload').addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => { bgDataUrl = e.target.result; applyBg(); };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('bg-opacity').addEventListener('input', function() {
+      document.getElementById('bg-opacity-val').textContent = Math.round(this.value * 100) + '%';
+      applyBg();
+    });
+
+    document.getElementById('bg-remove').addEventListener('click', () => {
+      bgDataUrl = null;
+      document.getElementById('bg-upload').value = '';
+      applyBg();
+    });
+    // ---- End background image logic ----
+
+    // Patch generate to inject .card-bg div and reapply bg
+    const _origGenerate = generate;
+    function generateWithBg(...args) {
+      _origGenerate(...args);
+      document.querySelectorAll('.card').forEach(card => {
+        if (!card.querySelector('.card-bg')) {
+          const bg = document.createElement('div');
+          bg.className = 'card-bg';
+          card.prepend(bg);
+        }
+      });
+      applyBg();
+    }
+
+    // Override button/select handlers to use generateWithBg
+    document.getElementById('gen').removeEventListener && void 0; // event already bound below
+
+    // Restore custom list from storage
+    LISTS['Saját'] = customItems;
+
     // initial generate (use current list selection)
-    generate(parseInt(document.getElementById('numCards').value), null, document.getElementById('listSelect').value);
+    generateWithBg(parseInt(document.getElementById('numCards').value), null, document.getElementById('listSelect').value);
   </script>
 </body>
 </html>
