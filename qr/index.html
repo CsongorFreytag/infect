@@ -480,22 +480,16 @@
         const loc   = document.getElementById('ev-loc').value.trim();
         const desc  = document.getElementById('ev-desc').value.trim();
         if (!title) { alert('Kérlek add meg az esemény nevét!'); return null; }
-        const uid = Date.now() + '@qrgen.local';
-        const lines = [
-          'BEGIN:VCALENDAR',
-          'VERSION:2.0',
-          'PRODID:-//QR Generator//HU',
-          'BEGIN:VEVENT',
-          `UID:${uid}`,
-          `SUMMARY:${title}`,
-          start ? `DTSTART:${fmtDt(start)}` : '',
-          end   ? `DTEND:${fmtDt(end)}`     : '',
-          loc   ? `LOCATION:${loc}`         : '',
-          desc  ? `DESCRIPTION:${desc}`     : '',
-          'END:VEVENT',
-          'END:VCALENDAR'
-        ].filter(Boolean);
-        return lines.join('\r\n');
+        const dates = (start || end)
+          ? `${start ? fmtDt(start) : ''}/${end ? fmtDt(end) : fmtDt(start)}`
+          : '';
+        const params = new URLSearchParams();
+        params.set('action', 'TEMPLATE');
+        params.set('text', title);
+        if (dates) params.set('dates', dates);
+        if (loc)   params.set('location', loc);
+        if (desc)  params.set('details', desc);
+        return `https://calendar.google.com/calendar/render?${params.toString()}`;
       }
 
       return null;
