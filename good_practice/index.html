@@ -321,3 +321,114 @@
 
 <p><small>* Erőforrás‑korlátozott környezetben az AMS bizottság és az AMS csapat funkciói ugyanabba a csapatba tartozhatnak.<br>
 i Indikátor a Háromoldalú M&E keretrendszerben az AMR‑re vonatkozó Globális Akcióterv számára.</small></p>
+
+<div style="margin: 8mm 18mm 4mm;">
+  <button id="evaluateBtn" onclick="evaluateChecklist()" style="background-color:#AD1A55;color:white;border:none;padding:10px 24px;font-size:1rem;border-radius:6px;cursor:pointer;">
+    Kiértékelés megtekintése
+  </button>
+</div>
+
+<div id="results" style="display:none; margin: 4mm 18mm 8mm; padding: 1.5rem; background: #fff; border: 2px solid #AD1A55; border-radius: 8px; max-width: 640px;"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const rows = document.querySelectorAll('tbody tr');
+  let qIndex = 0;
+  rows.forEach(function (row) {
+    const checkboxes = row.querySelectorAll('input[type="checkbox"]');
+    if (checkboxes.length !== 2) return;
+    qIndex++;
+    const name = 'q' + qIndex;
+    const isHalado = !!(checkboxes[0].parentElement.getAttribute('style') &&
+      checkboxes[0].parentElement.getAttribute('style').includes('D0D0D0'));
+
+    [['igen', checkboxes[0]], ['nem', checkboxes[1]]].forEach(function (pair) {
+      const val = pair[0], oldInput = pair[1];
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = name;
+      radio.value = val;
+      radio.dataset.level = isHalado ? 'halado' : 'alap';
+      radio.style.cssText = 'cursor:pointer;width:18px;height:18px;';
+      oldInput.replaceWith(radio);
+    });
+  });
+});
+
+function evaluateChecklist() {
+  const allYesRadios = document.querySelectorAll('input[type="radio"][value="igen"]');
+  const seen = new Set();
+  let alapYes = 0, alapNo = 0, alapOpen = 0, alapTotal = 0;
+  let haladoYes = 0, haladoNo = 0, haladoOpen = 0, haladoTotal = 0;
+
+  allYesRadios.forEach(function (radio) {
+    const name = radio.name;
+    if (seen.has(name)) return;
+    seen.add(name);
+    const yes = document.querySelector('input[name="' + name + '"][value="igen"]').checked;
+    const no  = document.querySelector('input[name="' + name + '"][value="nem"]').checked;
+    const halado = radio.dataset.level === 'halado';
+    if (halado) {
+      haladoTotal++;
+      if (yes) haladoYes++;
+      else if (no) haladoNo++;
+      else haladoOpen++;
+    } else {
+      alapTotal++;
+      if (yes) alapYes++;
+      else if (no) alapNo++;
+      else alapOpen++;
+    }
+  });
+
+  const totalYes   = alapYes + haladoYes;
+  const totalNo    = alapNo  + haladoNo;
+  const totalOpen  = alapOpen + haladoOpen;
+  const total      = alapTotal + haladoTotal;
+  const pct     = total      > 0 ? Math.round(100 * totalYes   / total)      : 0;
+  const alapPct = alapTotal  > 0 ? Math.round(100 * alapYes    / alapTotal)  : 0;
+  const hPct    = haladoTotal> 0 ? Math.round(100 * haladoYes  / haladoTotal): 0;
+
+  function row(label, yes, no, open, tot, pct, bg) {
+    return '<tr style="background:' + bg + ';">'
+      + '<td style="padding:8px 12px;font-weight:600;">' + label + '</td>'
+      + '<td style="padding:8px 12px;text-align:center;color:#2a7a2a;font-weight:700;">' + yes + '</td>'
+      + '<td style="padding:8px 12px;text-align:center;color:#c0392b;font-weight:700;">' + no + '</td>'
+      + '<td style="padding:8px 12px;text-align:center;color:#888;">' + open + '</td>'
+      + '<td style="padding:8px 12px;text-align:center;">' + tot + '</td>'
+      + '<td style="padding:8px 12px;text-align:center;font-weight:700;">' + pct + '%</td>'
+      + '</tr>';
+  }
+
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML =
+    '<h3 style="margin:0 0 1rem;color:#AD1A55;">Kiértékelés eredménye</h3>'
+    + '<table style="border-collapse:collapse;width:100%;font-size:0.92rem;">'
+    + '<thead><tr style="background:#AD1A55;color:white;">'
+    + '<th style="padding:8px 12px;text-align:left;"></th>'
+    + '<th style="padding:8px 12px;text-align:center;">Igen</th>'
+    + '<th style="padding:8px 12px;text-align:center;">Nem</th>'
+    + '<th style="padding:8px 12px;text-align:center;">Megválaszolatlan</th>'
+    + '<th style="padding:8px 12px;text-align:center;">Összesen</th>'
+    + '<th style="padding:8px 12px;text-align:center;">Igen %</th>'
+    + '</tr></thead><tbody>'
+    + row('Alap elemek',   alapYes,   alapNo,   alapOpen,   alapTotal,   alapPct, '#F6F6F6')
+    + row('Haladó elemek', haladoYes, haladoNo, haladoOpen, haladoTotal, hPct,    '#D0D0D0')
+    + row('Összesen',      totalYes,  totalNo,  totalOpen,  total,       pct,     '#EDD4DA')
+    + '</tbody></table>'
+    + (totalOpen > 0
+        ? '<p style="margin-top:0.8rem;font-size:0.85rem;color:#666;">⚠ ' + totalOpen + ' kérdés megválaszolatlan maradt.</p>'
+        : '')
+    + '<p style="margin-top:0.8rem;font-size:0.82rem;color:#888;font-style:italic;">'
+    + 'Megjegyzés: A WHO kiadvány nem ad meg numerikus pontozási határokat. '
+    + 'Az eredmény a megvalósított (Igen) elemek arányát mutatja az összes kérdéshez viszonyítva.</p>';
+
+  resultsDiv.style.display = 'block';
+  resultsDiv.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+
+<p style="margin: 8mm 18mm; font-size: 0.85rem; color: #555;">
+  <strong>Forrás:</strong> World Health Organization (2019). <em>Antimicrobial stewardship programmes in health-care facilities in low- and middle-income countries: a WHO practical toolkit.</em>
+  Geneva: WHO. <a href="https://www.who.int/publications/i/item/9789241515481" target="_blank" style="color:#AD1A55;">https://www.who.int/publications/i/item/9789241515481</a>
+</p>
